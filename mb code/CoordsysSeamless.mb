@@ -1,0 +1,208 @@
+'*******************************************************************************
+'** 	Created By Peter Horsbøll Møller, Pitney Bowes Software
+'** 	Program:
+'** 	Modul:
+'**
+'*******************************************************************************
+
+'-------------------------------------
+Include "Library\MapBasic.def"
+Include "Library\Icons.def"
+Include "Library\Menu.def"
+'**default constants...
+Include "Library\Defaults.def"
+
+'-------------------------------------
+Include "Library\DEBUGLib.def"
+Include "Library\ERRORLib.def"
+Include "Library\FILELib.def"
+Include "Library\TABLELib.def"
+
+Include "CoordsysSeamless.def"
+
+Declare Sub CoordsysSeamlessStart_Single
+
+
+Dim	msInputSeamlessTabFile, msInputSeamlessTab, msInputFolder As String,
+	msOutputSeamlessTabFile, msOutputSeamlessTab, msOutputFolder As String,
+	msCoordSys As String,
+	mbSameFileError As Logical
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Software
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CoordsysSeamlessStart
+
+Dim	sCmd As String
+
+OnError GoTo ErrorOccured
+
+	If NumTables() > 0 Then
+		If Ask("All tables have to be closed for this function to work. Click 'Close All' to close all tables or 'Abort' to stop this function", "Abort", "Close All") Then
+			Exit Sub
+		End If
+		Close All Interactive
+		If NumTables() > 0 Then
+			Exit Sub
+		End If
+	End If
+
+	msInputSeamlessTabFile	= FileOpenDlg("", "", "TAB", "Select seamless tab file to transform...")
+	If msInputSeamlessTabFile = "" Then
+		Exit Sub
+	End If
+
+	Call DEBUGPrint("Input file: " & msInputSeamlessTabFile)
+	msInputFolder	= PathToDirectory$(msInputSeamlessTabFile)
+	Call DEBUGPrint("Input folder: " & msInputFolder)
+
+	Open Table msInputSeamlessTabFile
+	msInputSeamlessTab	= PathToTableName$(msInputSeamlessTabFile)
+	If NOT TableInfo(msInputSeamlessTab, TAB_INFO_SEAMLESS) Then
+		Note "Please select a seamless table for this function!"
+		Close Table msInputSeamlessTab
+		Exit Sub
+	End If
+
+	msOutputSeamlessTabFile	= FileSaveAsDlg("", PathToFileName$(msInputSeamlessTabFile), "TAB", "Select name of seamless table after transformation...")
+	If msOutputSeamlessTabFile = "" Then
+		Close Table msInputSeamlessTab
+		Exit Sub
+	End If
+	Call DEBUGPrint("Output file: " & msOutputSeamlessTabFile)
+	msOutputFolder	= PathToDirectory$(msOutputSeamlessTabFile)
+	Call DEBUGPrint("Output folder: " & msOutputFolder)
+
+	msCoordSys		= ChooseProjection$("", TRUE )
+	If msCoordSys = "" Then
+		Close Table msInputSeamlessTab
+		Exit Sub
+	End If
+
+	Set Table msInputSeamlessTab Seamless Off
+	Call DEBUGPrint("Input coordsys: " & TableInfo(msInputSeamlessTab, TAB_INFO_COORDSYS_CLAUSE))
+	Call DEBUGPrint("Output coordsys: " & msCoordSys)
+
+	msOutputSeamlessTab	= "__NEW__SEAMLESS"
+	Create Table msOutputSeamlessTab
+		( Table		Char(100)
+		, Description 	Char(25)
+		)
+		File msOutputSeamlessTabFile
+
+	sCmd = "Create Map For " & msOutputSeamlessTab & " " & msCoordSys
+	Call DEBUGPrint(sCmd)
+	Run Command sCmd
+
+	mbSameFileError	= FALSE
+	Fetch First From msInputSeamlessTab
+
+	Progressbar "Transforming tables from seamless tables..."
+		Calling CoordsysSeamlessStart_Single
+		Range TableInfo(msInputSeamlessTab, TAB_INFO_NROWS)
+
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Note "Process was interrupted. The output seamless table might not be complete!"
+	End If
+	If mbSameFileError Then
+		Note "Some, or maybe all, of the tables referred to in the seamless table could not get transformed as the input and output file names would have been the same!"
+	End If
+
+	Set Table msOutputSeamlessTab Seamless On Preserve
+	Set Table msInputSeamlessTab Seamless On
+
+	Close Table msOutputSeamlessTab
+	Close Table msInputSeamlessTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CoordsysSeamlessStart")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Software
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CoordsysSeamlessStart_Single
+
+Dim	sTabFile, sInTabFile, sOutTabFile, sCmd As String,
+	nRow As Integer,
+	fX1, fY1, fX2, fY2 As Float,
+	oMBR As Object,
+	aRowID, aTabFile As Alias
+
+OnError GoTo ErrorOccured
+
+	aTabFile		= msInputSeamlessTab & ".TABLE"
+	aRowID		= msInputSeamlessTab & ".ROWID"
+	sTabFile		= aTabFile
+	If Left$(sTabFile, 2) = "\\" Then
+		'**Full path
+		sInTabFile	= sTabFile
+		sOutTabFile	= FILEGetAbsolutePath(msOutputFolder, FILEGetRelativePath(msInputFolder, sTabFile))
+		Call FILECreateFolder(PathToDirectory$(sOutTabFile))
+		sTabFile		= sOutTabFile
+	ElseIf Mid$(sTabFile, 2, 2) = ":\" Then
+		'**Full path
+		sInTabFile	= sTabFile
+		sOutTabFile	= FILEGetAbsolutePath(msOutputFolder, FILEGetRelativePath(msInputFolder, sTabFile))
+		sTabFile		= sOutTabFile
+		Call FILECreateFolder(PathToDirectory$(sOutTabFile))
+	Else
+		'**Relative path
+		sInTabFile	= msInputFolder & sTabFile
+		sOutTabFile	= msOutputFolder & sTabFile
+	End If
+	nRow			= aRowID
+
+	Call DEBUGPrint(nRow & ": " & sInTabFile)
+	Call DEBUGPrint("   -> " & sOutTabFile)
+
+	If sInTabFile = sOutTabFile Then
+		Print "Can't work with the same input and output files!"
+		mbSameFileError = TRUE
+	Else
+		Open Table sInTabFile As "__TO__SAVE__AS"
+		sCmd = "Commit Table __TO__SAVE__AS As " & eye & sOutTabFile & eye & " " & msCoordSys
+		Call DEBUGPrint("   " & sCmd)
+		Run Command sCmd
+		Close Table "__TO__SAVE__AS"
+
+		Open Table sOutTabFile As "__TO__REGISTER"
+		Set CoordSys Table "__TO__REGISTER"
+
+		fX1 = TableInfo("__TO__REGISTER", TAB_INFO_MINX)
+		fY1 = TableInfo("__TO__REGISTER", TAB_INFO_MINY)
+		fX2 = TableInfo("__TO__REGISTER", TAB_INFO_MAXX)
+		fY2 = TableInfo("__TO__REGISTER", TAB_INFO_MAXY)
+		Create Rect Into Variable oMBR (fX1,fY1)(fX2,fY2)
+		Insert Into msOutputSeamlessTab
+			(TABLE, DESCRIPTION, OBJ)
+			Values
+			(sTabFile, PathToTableName$(sOutTabFile), oMBR)
+		Commit Table msOutputSeamlessTab
+		Close Table "__TO__REGISTER"
+	End If
+
+	Fetch Next From msInputSeamlessTab
+
+	If EOT(msInputSeamlessTab) Then
+		Progressbar = -1
+	Else
+		Progressbar = nRow
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CoordsysSeamlessStart_Single")
+	Call ERRShow()
+
+End Sub
+
+

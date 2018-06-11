@@ -1,0 +1,15 @@
+!table
+!version 452
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 3
+    DSFL_KODE Char (21) Index 1 ;
+    OPRIND_DATO Char (12) ;
+    SW_MEMBER Integer ;
+begin_metadata
+"\IsReadOnly" = "FALSE"
+"\MapInfo" = ""
+"\MapInfo\TableID" = "ffc09d89-5390-4bb0-8e2e-e51d47c7484f"
+end_metadata

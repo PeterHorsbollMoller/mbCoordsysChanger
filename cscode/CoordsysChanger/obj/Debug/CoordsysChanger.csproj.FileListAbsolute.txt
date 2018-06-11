@@ -1,0 +1,8 @@
+C:\1. Data\3. MB_Kode\CoordsysChanger\cscode\CoordsysChanger\obj\Debug\ResolveAssemblyReference.cache
+C:\1. Data\3. MB_Kode\CoordsysChanger\cscode\CoordsysChanger\obj\Debug\CoordsysChanger.CoordsysChangerDialog.resources
+C:\1. Data\3. MB_Kode\CoordsysChanger\cscode\CoordsysChanger\obj\Debug\CoordsysChanger.csproj.GenerateResource.Cache
+C:\1. Data\3. MB_Kode\CoordsysChanger\cscode\CoordsysChanger\obj\Debug\CoordsysChanger.Properties.Resources.resources
+C:\1. Data\3. MB_Kode\CoordsysChanger\cscode\CoordsysChanger\obj\Debug\CoordsysChanger.dll
+C:\1. Data\3. MB_Kode\CoordsysChanger\cscode\CoordsysChanger\obj\Debug\CoordsysChanger.pdb
+C:\1. Data\3. MB_Kode\CoordsysChanger\CoordsysChanger.dll
+C:\1. Data\3. MB_Kode\CoordsysChanger\CoordsysChanger.pdb

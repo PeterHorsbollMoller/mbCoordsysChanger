@@ -1,0 +1,598 @@
+'*******************************************************************************
+'** 	Created By Peter Horsbøll Møller, Pitney Bowes Business Insight
+'** 	Program:
+'** 	Modul:	CoordsysChanger.mb
+'**
+'*******************************************************************************
+
+Define	CTRL_LST_TABLES			100
+Define	CTRL_TXT_COORDSYS_NAME		200
+Define 	CTRL_CHK_OVERWRITE_INPUT		300
+Define	CTRL_TXT_OUTPUT_PATH		400
+Define	CTRL_LBL_OUTPUT_PATH		410
+Define	CTRL_BTN_OUTPUT_PATH		420
+
+'-------------------------------------
+Include "Enums.def"
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+'**default constants...
+Include "Library\Defaults.def"
+
+'-------------------------------------
+Include "Library\ARRAYLib.def"
+Include "Library\DATETIMELib.def"
+Include "Library\DEBUGLib.def"
+Include "Library\ERRORLib.def"
+Include "Library\FILELib.def"
+Include "Library\RIBBONLib.def"
+Include "Library\TABLELib.def"
+
+Include "CoordsysChanger.def"
+
+Declare Sub CSCHNGHandler_OnLoad
+Declare Sub CSCHNGHandler_OKClicked
+Declare Sub CSCHNGHandler_CoordsysClicked
+Declare Sub CSCHNGHandler_OutputPathClicked
+Declare Sub CSCHNGHandler_OverwriteInputClicked
+
+Declare Sub CSCHNGChangeCoordsysOnTable_Single
+
+
+Dim	marrTables(), marrTablesSelected() As String,
+	msNewCoordsys, msOutputPath As String,
+	mnTransformType, mnProcessFile As Integer,
+	mbOverwriteInput As Logical,
+	mbOverwriteExistingSetByUser, mbStepOverExistingSetByUser, mbPromptForNewTabFileSetByUser As Logical
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGShowDialog
+
+Dim	sCoordsysName As String
+
+OnError GoTo ErrorOccured
+
+	Redim marrTables(0)
+	If TABGetListOfNames(TAB_USE_ONLY_MAPPABLE + TAB_USE_BASE, marrTables) = 0 Then
+		Note "Please open the tables that you want to change the coordinate system on!"
+		Exit Sub
+	End If
+
+	mnTransformType = Maximum(mnTransformType, 1)
+
+	If msNewCoordsys = "" Then
+		sCoordsysName = ""
+	Else
+		sCoordsysName = CoordsysName$(msNewCoordsys)
+	End If
+
+	msOutputPath	= ApplicationDirectory$() & "coordsyschanger_" & DATEGetISODate(CurDate()) & "\"
+
+	Dialog
+		Title "Coordsys Changer"
+		Calling CSCHNGHandler_OnLoad
+		Control StaticText	Position 5,5
+			Title "Select tables to change coordsys on"
+
+		Control MultiListbox	Position 5,15	Width 200	Height 100	ID CTRL_LST_TABLES
+			Title From Variable marrTables
+
+		'**Coordinate system setting
+		Control Groupbox		Position 5,120	Width 255	Height 65
+			Title "Transformation"
+		Control StaticText	Position 15,130
+			Title "Target coordinate system"
+		Control EditText		Position 15,140	Width 218			ID CTRL_TXT_COORDSYS_NAME
+			Value sCoordsysName
+		Control Button		Position 235,140	Width 15	Height 12
+			Title "..."
+			Calling CSCHNGHandler_CoordsysClicked
+		Control RadioGroup		Position 15, 155
+			'Title "Change coordinate system without changing the coordinates"
+			Title "Change coordinate system without changing the coordinates;Perform a standard coordinate transformation using Save As"
+			Value mnTransformType
+
+		'**Output settings
+		Control Groupbox		Position 5,195	Width 255	Height 55
+			Title "Output"
+		Control Checkbox		Position 15,205					ID CTRL_CHK_OVERWRITE_INPUT
+			Title "Overwrite input tables"
+			Value mbOverwriteInput
+			Into mbOverwriteInput
+			Calling CSCHNGHandler_OverwriteInputClicked
+
+		Control StaticText	Position 15,220					ID CTRL_LBL_OUTPUT_PATH
+			Title "Output folder"
+		Control EditText		Position 15,230	Width 218			ID CTRL_TXT_OUTPUT_PATH
+			Value msOutputPath
+		Control Button		Position 235,230	Width 15	Height 12	ID CTRL_BTN_OUTPUT_PATH
+			Title "..."
+			Calling CSCHNGHandler_OutputPathClicked
+
+		'**OK/Cancel buttons
+		Control OKButton		Position 210,15	Width 50
+			Title "Transform"
+			Calling CSCHNGHandler_OKClicked
+		Control CancelButton	Position 210,30	Width 50
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	If mbOverwriteInput Then
+		Call CSCHNGChangeCoordsysOnTables(marrTablesSelected, msNewCoordsys, "")
+	Else
+		Call CSCHNGChangeCoordsysOnTables(marrTablesSelected, msNewCoordsys, msOutputPath)
+	End If
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGShowDialog")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGHandler_OnLoad
+
+OnError GoTo ErrorOccured
+
+	Call CSCHNGHandler_OverwriteInputClicked
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGHandler_OnLoad")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGHandler_OKClicked
+
+Dim	nItem, nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	If msNewCoordsys = "" Then
+		Note "Please select a target coordinate system before continuing!"
+		Dialog Preserve
+		Exit Sub
+	End If
+
+	Redim marrTablesSelected(Ubound(marrTables))
+
+	nItem = ReadControlValue(CTRL_LST_TABLES)
+	Do Until (nItem = 0)
+		nCount				= nCount + 1
+		marrTablesSelected(nCount)	= marrTables(nItem)
+
+		nItem					= ReadControlValue(CTRL_LST_TABLES)
+	Loop
+
+	Redim marrTablesSelected(nCount)
+
+	If nCount = 0 Then
+		Note "Please select some tables before continuing!"
+		Dialog Preserve
+		Exit Sub
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGHandler_OKClicked")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGHandler_CoordsysClicked
+
+Dim	sCoordsysName, sCoordsys As String
+
+OnError GoTo ErrorOccured
+
+	sCoordsys = ChooseProjection$(msNewCoordsys, 1)
+	If sCoordsys = "" Then
+		Exit Sub
+	End If
+
+	msNewCoordsys	= sCoordsys
+	sCoordsysName	= CoordsysName$(msNewCoordsys)
+
+	Alter Control CTRL_TXT_COORDSYS_NAME Value sCoordsysName
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGHandler_CoordsysClicked")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGHandler_OutputPathClicked
+
+Dim	sPath As String
+
+OnError GoTo ErrorOccured
+
+	sPath = FILEBrowseForFolder("Select folder to store the transformed tables into...", msOutputPath)
+	If sPath = "" Then
+		Exit Sub
+	End If
+
+	msOutputPath	= FILEAddBackSlash(sPath)
+	Alter Control CTRL_TXT_OUTPUT_PATH	Value msOutputPath
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGHandler_OutputPathClicked")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGHandler_OverwriteInputClicked
+
+OnError GoTo ErrorOccured
+
+	If ReadControlValue(CTRL_CHK_OVERWRITE_INPUT) Then
+		Alter Control CTRL_LBL_OUTPUT_PATH	Disable
+		Alter Control CTRL_TXT_OUTPUT_PATH	Disable
+		Alter Control CTRL_BTN_OUTPUT_PATH	Disable
+	Else
+		Alter Control CTRL_LBL_OUTPUT_PATH	Enable
+		Alter Control CTRL_TXT_OUTPUT_PATH	Enable
+		Alter Control CTRL_BTN_OUTPUT_PATH	Enable
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGHandler_OverwriteInputClicked")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGChangeCoordsysOnTables(arrTables() As String, ByVal sNewCoordsys As String, ByVal sOutputPath As String)
+
+Dim	i As Integer,
+	sTab, sTabFile As String
+
+OnError GoTo ErrorOccured
+
+	mbOverwriteExistingSetByUser		= FALSE
+	mbStepOverExistingSetByUser		= FALSE
+	mbPromptForNewTabFileSetByUser	= FALSE
+
+	msOutputPath	= sOutputPath
+	msNewCoordsys	= sNewCoordsys
+	Call ARRAYCopyString(arrTables, marrTablesSelected)
+
+	If sOutputPath <> "" Then
+		Print "Creating all folders: " & msOutputPath
+		Call FILECreateFolder(msOutputPath)
+	End If
+
+	Set Progressbars Off
+
+	mnProcessFile = 1
+	Progressbar "Changing coordsys of tables..."
+		Calling CSCHNGChangeCoordsysOnTable_Single
+		Range Ubound(marrTablesSelected)
+
+	Set Progressbars On
+
+	Call RBNNotificationShow("CoordSysChanger", "Finished changing coordsys of " & Ubound(marrTablesSelected) & " tables", Notify_Info, 10000)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGChangeCoordsysOnTables")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGChangeCoordsysOnTable_Single
+
+Dim	sTab, sTabFile As String
+
+OnError GoTo ErrorOccured
+
+	sTab		= marrTablesSelected(mnProcessFile)
+	If mbOverwriteInput Then
+		sTabFile	= TableInfo(sTab, TAB_INFO_TABFILE)
+	Else
+		sTabFile	= CSCHNGGetOutputTabFile(TableInfo(sTab, TAB_INFO_TABFILE), msOutputPath)
+	End If
+
+	If mnTransformType = 1 Then
+		Call CSCHNGChangeCoordsysOnTableMIF(sTab, msNewCoordsys, sTabFile)
+	Else
+		Call CSCHNGChangeCoordsysOnTableSaveAs(sTab, msNewCoordsys, sTabFile)
+	End If
+
+	If mnProcessFile = Ubound(marrTablesSelected) Then
+		Progressbar = -1
+	Else
+		Progressbar = mnProcessFile
+	End If
+	mnProcessFile = mnProcessFile + 1
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGChangeCoordsysOnTable_Single")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'	:
+'Return value:
+'
+'**********************************************************************************************''
+Function CSCHNGGetOutputTabFile(ByVal sInputTabFile As String, ByVal sOutputPath As String) As String
+
+Dim	sFile As String
+
+OnError GoTo ErrorOccured
+
+	If sOutputPath = "" Then
+		CSCHNGGetOutputTabFile	= sInputTabFile
+	Else
+		sFile 			= PathToFileName$(sInputTabFile)
+		CSCHNGGetOutputTabFile	= FILEAddBackSlash(sOutputPath) & sFile
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGGetOutputTabFile")
+	Call ERRShow()
+
+End Function
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGChangeCoordsysOnTableMIF(ByVal sTab As String, ByVal sNewCoordsys As String, ByVal sNewTabFile As String)
+
+Dim	sFile, sLine As String,
+	nTime As Integer
+
+OnError GoTo ErrorOccured
+
+	nTime = Timer()
+	Call DEBUGPrint("Changing coordinatesystem on " & sTab & " with " & TableInfo(sTab, TAB_INFO_NROWS) & " records")
+
+	If NOT CSCHNGContinueIfFileExists(sTab, sNewTabFile) Then
+		Exit Sub
+	End If
+
+	sFile	= PathToDirectory$(TempFileName$("")) & "__coordsys_Changer"
+	Call DEBUGPrint("   Exporting to mif/mid...")
+	Export sTab
+		Into sfile & ".mif"
+		Type "MIF"
+		Overwrite
+
+	If FileExists(sfile & "2.mif") Then
+		Kill sfile & "2.mif"
+	End If
+	Rename File	sfile & ".mif" As sfile & "2.mif"
+
+	Call DEBUGPrint("   Replacing CoordSys in mif/mid...")
+	Open File sfile & ".mif"
+		For Output
+		As #234
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+	Open File sfile & "2.mif"
+		For Input
+		As #345
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+
+	Do Until EOF(345)
+		Line Input #345, sLine
+
+		If Left$(sLine, Len("CoordSys")) = "CoordSys" Then
+			Print #234, sNewCoordsys
+			Exit Do
+		Else
+			Print #234, sLine
+		End If
+	Loop
+
+	Do Until EOF(345)
+		Line Input #345, sLine
+		Print #234, sLine
+	Loop
+
+	Close File #234
+	Close File #345
+
+	Call DEBUGPrint("   Importing mif/mid...")
+	Close Table sTab
+	Import sfile & ".mif"
+		Type "MIF"
+		Into sNewTabFile
+		Overwrite
+
+	Kill sfile & ".mif"
+	Kill sfile & "2.mif"
+	Kill sfile & ".mid"
+
+	Call DEBUGPrint("   Done, " & (Timer() - nTime) & " secs")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGChangeCoordsysOnTableMIF")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub CSCHNGChangeCoordsysOnTableSaveAs(ByVal sTab As String, ByVal sNewCoordsys As String, ByVal sNewTabFile As String)
+
+Dim	sFile, sCmd As String,
+	nTime As Integer
+
+OnError GoTo ErrorOccured
+
+	nTime = Timer()
+	Call DEBUGPrint("Changing coordinatesystem on " & sTab & " with " & TableInfo(sTab, TAB_INFO_NROWS) & " records")
+
+	If NOT CSCHNGContinueIfFileExists(sTab, sNewTabFile) Then
+		Exit Sub
+	End If
+
+	Call DEBUGPrint("   Saving a Copy As...")
+	sFile	= PathToDirectory$(TempFileName$("")) & "__coordsys_Changer"
+	Call DEBUGPrint("   Saving copy as...")
+	sCmd = "Commit Table " & Chr$(34) & sTab & Chr$(34)
+		& " As " & Chr$(34) & sFile & ".tab" & Chr$(34)
+		& " " & sNewCoordsys
+	Print sCmd
+	Run Command sCmd
+
+	Call DEBUGPrint("   Moving table to output folder...")
+	Close Table sTab
+	Open Table sfile & ".tab"
+	Rename Table PathToTableName$(sfile & ".tab") As sNewTabFile
+	Close Table PathToTableName$(sNewTabFile)
+
+	Call DEBUGPrint("   Done, " & (Timer() - nTime) & " secs")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGChangeCoordsysOnTableSaveAs")
+	Call ERRShow()
+
+End Sub
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'	:
+'Return value:
+'	sTabFile:	Filename might have changed if the user has chosen a different name
+'	TRUE:		Continue, create a new file with the name returned
+'	FALSE:	Ignore, do not create this file, but move on to the next file
+'**********************************************************************************************''
+Function CSCHNGContinueIfFileExists(ByVal sTab As String, sTabFile As String) As Logical
+
+Dim	bUseOnWards, bPromptForNewTabFileSetByUser As Logical,
+	nChoise As Integer,
+	sFile As String
+
+OnError GoTo ErrorOccured
+
+CSCHNGContinueIfFileExists = TRUE
+
+	If FileExists(sTabFile) AND NOT mbOverwriteExistingSetByUser Then
+
+		If mbStepOverExistingSetByUser Then
+			CSCHNGContinueIfFileExists = FALSE
+			Exit Function
+		End If
+
+		If NOT mbPromptForNewTabFileSetByUser Then
+				Dialog
+					Control StaticText	Position 5,5
+						Title "The output tab file already exists!"
+					Control StaticText	Position 5,15
+						Title "File: " & sTabFile
+					Control StaticText	Position 5,25
+						Title "How should we proceed?"
+
+					Control RadioGroup	Position 5,40
+						Title "Stepover this file;Ask for a new file name;Overwrite this file"
+						Value 1
+						Into nChoise
+
+					Control Checkbox		Position 5,85
+						Title "Use this choise for other conflicts"
+						Value FALSE
+						Into bUseOnWards
+
+					Control OKButton
+
+			Do Case nChoise
+				Case 1
+					mbStepOverExistingSetByUser		= bUseOnWards
+					CSCHNGContinueIfFileExists 	= FALSE
+					Exit Function
+
+				Case 2
+					mbPromptForNewTabFileSetByUser 	= bUseOnWards
+					bPromptForNewTabFileSetByUser		= TRUE
+
+				Case 3
+					mbOverwriteExistingSetByUser		= bUseOnWards
+
+			End Case
+		End If
+
+		If mbPromptForNewTabFileSetByUser OR bPromptForNewTabFileSetByUser Then
+			sFile	= FileSaveAsDlg(PathToDirectory$(sTabFile), PathToFileName$(sTabFile), "TAB", "Choose a name for the transformed version of the table " & sTab & "...")
+			If sFile = "" Then
+				CSCHNGContinueIfFileExists 	= FALSE
+			End If
+			sTabFile = sFile
+		End If
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "CSCHNGContinueIfFileExists")
+	Call ERRShow()
+
+End Function
+

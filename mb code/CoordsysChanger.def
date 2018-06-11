@@ -1,0 +1,8 @@
+Declare Sub CSCHNGShowDialog
+
+Declare Sub CSCHNGChangeCoordsysOnTables(arrTables() As String, ByVal sNewCoordsys As String, ByVal sOutputPath As String)
+Declare Sub CSCHNGChangeCoordsysOnTableMIF(ByVal sTab As String, ByVal sNewCoordsys As String, ByVal sNewTabFile As String)
+Declare Sub CSCHNGChangeCoordsysOnTableSaveAs(ByVal sTab As String, ByVal sNewCoordsys As String, ByVal sNewTabFile As String)
+
+Declare Function CSCHNGGetOutputTabFile(ByVal sInputTabFile As String, ByVal sOutputPath As String) As String
+Declare Function CSCHNGContinueIfFileExists(ByVal sTab As String, sTabFile As String) As Logical

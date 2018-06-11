@@ -1,0 +1,161 @@
+'*******************************************************************************
+'**   Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'** 	Program:
+'** 	Modul:
+'**
+'*******************************************************************************
+'17-02-2011 21:20:18	1.01	- Output folder is now using ISO formatet date
+'					- Improved dialog
+'					- Improved handling of output names (adds a backslash to the outputfolder)
+'					- User will be asked before an existing file is overwritten
+'					- Made the GUI ready to also do a standard MapInfo Save As transformation
+'29-06-2012 12:46:06	1.02 - rebuild the tool using the latest MapBasic libraries
+'08-06-2018 15:13:50	2.00	- Ported to 64 bit ribbon interface
+'*******************************************************************************
+
+'-------------------------------------
+Include "Library\MapBasic.def"
+Include "Library\Icons.def"
+Include "Library\Menu.def"
+'**default constants...
+Include "Library\Defaults.def"
+
+Define xProgram 		"CoordsysChanger"
+Define xProgramMenu		"CoordsysChanger"
+Define xVersion 		"2.00"
+Define xYear			"2018"
+Define xAddToMenuBar	FALSE
+
+Define FILE_INI			GetFolderPath$(FOLDER_MI_PREFERENCE) & xProgram & ".ini"
+Define FILE_DBG			ApplicationDirectory$() & xProgram & ".dbg"
+'Define FILE_DLL			ApplicationDirectory$() & xProgram & ".dll"
+Define FILE_PAD			GetFolderPath$(FOLDER_MI_PREFERENCE) & xProgram & ".btp"
+
+'-------------------------------------
+Include "Library\ProgramInfo.def"
+Include "Library\DEBUGLib.def"
+Include "Library\ERRORLib.def"
+Include "Library\RIBBONLib.def"
+Include "Library\TABLELib.def"
+
+Include "CoordsysChanger.def"
+Include "CoordsysSeamless.def"
+
+'-----------------------------------------------------------------------------------------
+Declare Method ShowCoordsysChangerDlg Class "CoordsysChanger.Controller" Lib "CoordsysChanger.dll"
+	(ByVal hwnd as Integer, arrTables() As String, ByVal bFloating As Logical) As Logical
+
+'-----------------------------------------------------------------------------------------
+Declare Sub Main
+Declare Sub EndProgram
+Declare Sub EndHandler
+
+Declare Sub MENUShowCoordsysDlg
+
+
+'**********************************************************************************************''
+'**   Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'
+'**********************************************************************************************''
+Sub Main
+
+OnError GoTo ErrorOccured
+
+	'***Initializing ApplicationInfo
+	Call PRGISetApplicationName(xProgram)
+	Call PRGISetApplicationVersion(xVersion)
+	Call PRGISetApplicationCopyrightYear(xYear)
+	Call PRGISetApplicationDevelopedBy("Peter Horsbøll Møller")
+	Call PRGISetDescription("This applications lets you change the coordsys of tables either using a replace method via MIF/MID or using a transform via Save As.")
+	Call PRGISetApplicationImageUri("pack://application:,,,/MapInfo.StyleResources;component/Images/Tools/toolCoordinateExtract_16x16.png")
+
+
+	'***Enabling Debug if file exists
+	Call DEBUGEnableByFile(FILE_DBG)
+
+	Alter Menu ID 4 Add
+		"Show Coordsys Changer Dialog..."
+			HelpMsg ""
+			Calling CSCHNGShowDialog,
+		"Change coordsys for seamless vector table..."
+			HelpMsg ""
+			Calling CoordsysSeamlessStart,
+		"(-",
+		"End program"
+			Calling EndProgram,
+		"About..."
+			Calling PRGIAboutbox
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "Main")
+	Call ERRShow()
+
+End Sub
+
+'****************************************
+'**   Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'**   Ending MapBasic application
+'****************************************
+Sub EndProgram
+
+OnError GoTo ErrorOccured
+
+	End Program
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "EndProgram")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub EndHandler
+
+OnError GoTo ErrorOccured
+
+	Call RBNEndHandler
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "EndHandler")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'
+'**********************************************************************************************''
+Sub MENUShowCoordsysDlg
+
+Dim	hwnd as Integer,
+	arrTables() As String
+
+OnError GoTo ErrorOccured
+
+	Redim arrTables(2)
+	arrTables(1)	= "Table nummer 1"
+	arrTables(2)	= "Table nummer 2"
+
+	hwnd			= SystemInfo(SYS_INFO_MAPINFOWND)
+
+	If ShowCoordsysChangerDlg(hwnd, arrTables(), FALSE) Then
+
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "MENUShowCoordsysDlg")
+	Call ERRShow()
+
+End Sub
+
