@@ -96,6 +96,7 @@ OnError GoTo ErrorOccured
 			'Title "Change coordinate system without changing the coordinates"
 			Title "Change coordinate system without changing the coordinates;Perform a standard coordinate transformation using Save As"
 			Value mnTransformType
+			Into mnTransformType
 
 		'**Output settings
 		Control Groupbox		Position 5,195	Width 255	Height 55
@@ -498,14 +499,13 @@ OnError GoTo ErrorOccured
 	sCmd = "Commit Table " & Chr$(34) & sTab & Chr$(34)
 		& " As " & Chr$(34) & sFile & ".tab" & Chr$(34)
 		& " " & sNewCoordsys
-	Print sCmd
+	Call DEBUGPrint(sCmd)
 	Run Command sCmd
 
 	Call DEBUGPrint("   Moving table to output folder...")
 	Close Table sTab
 	Open Table sfile & ".tab"
 	Rename Table PathToTableName$(sfile & ".tab") As sNewTabFile
-	Close Table PathToTableName$(sNewTabFile)
 
 	Call DEBUGPrint("   Done, " & (Timer() - nTime) & " secs")
 

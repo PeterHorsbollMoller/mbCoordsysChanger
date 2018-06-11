@@ -11,18 +11,21 @@
 '					- Made the GUI ready to also do a standard MapInfo Save As transformation
 '29-06-2012 12:46:06	1.02 - rebuild the tool using the latest MapBasic libraries
 '08-06-2018 15:13:50	2.00	- Ported to 64 bit ribbon interface
+'11-06-2018 10:04:47	2.01 - Made the transform type sticky during the session
 '*******************************************************************************
 
 '-------------------------------------
-Include "Library\MapBasic.def"
-Include "Library\Icons.def"
-Include "Library\Menu.def"
+Include "Enums.def"
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
 '**default constants...
 Include "Library\Defaults.def"
+Include "Library\RibbonElements.def"
 
 Define xProgram 		"CoordsysChanger"
 Define xProgramMenu		"CoordsysChanger"
-Define xVersion 		"2.00"
+Define xVersion 		"2.01"
 Define xYear			"2018"
 Define xAddToMenuBar	FALSE
 
@@ -59,6 +62,8 @@ Declare Sub MENUShowCoordsysDlg
 '**********************************************************************************************''
 Sub Main
 
+Dim	nCtrlIdx As Integer
+
 OnError GoTo ErrorOccured
 
 	'***Initializing ApplicationInfo
@@ -69,22 +74,26 @@ OnError GoTo ErrorOccured
 	Call PRGISetDescription("This applications lets you change the coordsys of tables either using a replace method via MIF/MID or using a transform via Save As.")
 	Call PRGISetApplicationImageUri("pack://application:,,,/MapInfo.StyleResources;component/Images/Tools/toolCoordinateExtract_16x16.png")
 
-
 	'***Enabling Debug if file exists
 	Call DEBUGEnableByFile(FILE_DBG)
 
 	Alter Menu ID 4 Add
-		"Show Coordsys Changer Dialog..."
+		"Change CoordSys on tables..."
 			HelpMsg ""
 			Calling CSCHNGShowDialog,
 		"Change coordsys for seamless vector table..."
 			HelpMsg ""
-			Calling CoordsysSeamlessStart,
-		"(-",
-		"End program"
-			Calling EndProgram,
-		"About..."
-			Calling PRGIAboutbox
+			Calling CoordsysSeamlessStart
+
+	nCtrlIdx = RBNGroupAddButton("cmdChangeCoordsys", "Change Coordsys", "", TAB_TABLE, TAB_GROUP_TABLE_DATA)
+	If nCtrlIdx > 0 Then
+		'Create & Set the button tooltip
+		Call RBNControlSetToolTipIdx(nCtrlIdx, PRGIGetApplicationName(), "Change coordinate system of one of more open tables.", "")
+		'Set the button icon
+		Call RBNControlSetIconsIdx(nCtrlIdx, CONTROL_SIZE_SMALL, "pack://application:,,,/MapInfo.StyleResources;component/Images/Tools/toolCoordinateExtract_16x16.png", "pack://application:,,,/MapInfo.StyleResources;component/Images/Tools/toolCoordinateExtract_32x32.png")
+		'Set Custom MapBasic Handle to the button
+		Call RBNControlSetCustomMBXHandlerIdx(nCtrlIdx, "CSCHNGShowDialog")
+	End If
 
 	Exit Sub
 '-------------------------
