@@ -58,7 +58,7 @@ Dim	sCoordsysName As String
 OnError GoTo ErrorOccured
 
 	Redim marrTables(0)
-	If TABGetListOfNames(TAB_USE_ONLY_MAPPABLE + TAB_USE_BASE, marrTables) = 0 Then
+	If TABGetListOfNames(TAB_USE_ONLY_MAPPABLE + TAB_USE_BASE + TAB_USE_READONLY, marrTables) = 0 Then
 		Note "Please open the tables that you want to change the coordinate system on!"
 		Exit Sub
 	End If
@@ -557,7 +557,7 @@ CSCHNGContinueIfFileExists = TRUE
 						Into nChoise
 
 					Control Checkbox		Position 5,85
-						Title "Use this choise for other conflicts"
+						Title "Use this choice for other conflicts"
 						Value FALSE
 						Into bUseOnWards
 
