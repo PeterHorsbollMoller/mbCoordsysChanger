@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-16"?>
+<MarketplaceProduct xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<ProductType>
+		<Type>Addin</Type>
+	</ProductType>
+	<IconUri>pack://application:,,,/MapInfo.StyleResources;component/Images/Tools/toolCoordinateExtract_16x16.png</IconUri>
+	<InstallationFolder>CoordsysChanger\</InstallationFolder>
+	<MbxName>CoordsysChanger.MBX</MbxName>
+</MarketplaceProduct>

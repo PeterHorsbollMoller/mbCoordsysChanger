@@ -1,5 +1,5 @@
 [LINK]
-Application=..\CoordsysChanger.mbx
+Application=..\CoordsysChanger\CoordsysChanger.mbx
 Module=Library\ARRAYLib.mbo
 Module=Library\CONFIGFILELib.mbo
 Module=Library\DATETIMELib.mbo

@@ -1,5 +1,5 @@
 '*******************************************************************************
-'**   Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'**   Created by Peter Horsbøll Møller, Precisely
 '** 	Program:
 '** 	Modul:
 '**
@@ -27,13 +27,14 @@ Include "Library\RibbonElements.def"
 
 Define xProgram 		"CoordsysChanger"
 Define xProgramMenu		"CoordsysChanger"
-Define xVersion 		"2.03"
-Define xYear			"2018"
+Define xVersion 		"2.10"
+Define xYear			"2020"
 Define xAddToMenuBar	FALSE
 
 Define FILE_INI			GetFolderPath$(FOLDER_MI_PREFERENCE) & xProgram & ".ini"
 Define FILE_DBG			ApplicationDirectory$() & xProgram & ".dbg"
 'Define FILE_DLL			ApplicationDirectory$() & xProgram & ".dll"
+Define FILE_HLP			ApplicationDirectory$() & xProgram & ".pdf"
 Define FILE_PAD			GetFolderPath$(FOLDER_MI_PREFERENCE) & xProgram & ".btp"
 
 '-------------------------------------
@@ -59,7 +60,7 @@ Declare Sub MENUShowCoordsysDlg
 
 
 '**********************************************************************************************''
-'**   Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'**   Created by Peter Horsbøll Møller, Precisely
 '
 '**********************************************************************************************''
 Sub Main
@@ -75,6 +76,7 @@ OnError GoTo ErrorOccured
 	Call PRGISetApplicationDevelopedBy("Peter Horsbøll Møller")
 	Call PRGISetDescription("This applications lets you change the coordsys of tables either using a replace method via MIF/MID or using a transform via Save As.")
 	Call PRGISetApplicationImageUri("pack://application:,,,/MapInfo.StyleResources;component/Images/Tools/toolCoordinateExtract_16x16.png")
+	Call PRGISetApplicationHelpFile(FILE_HLP)
 
 	'***Enabling Debug if file exists
 	Call DEBUGEnableByFile(FILE_DBG)
@@ -106,7 +108,7 @@ ErrorOccured:
 End Sub
 
 '****************************************
-'**   Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'**   Created by Peter Horsbøll Møller, Precisely
 '**   Ending MapBasic application
 '****************************************
 Sub EndProgram
@@ -123,7 +125,7 @@ ErrorOccured:
 End Sub
 
 '**********************************************************************************************''
-'Created by Peter Horsbøll Møller, Pitney Bowes
+'Created by Peter Horsbøll Møller, Precisely
 'Parameters:
 '
 '**********************************************************************************************''
@@ -141,7 +143,7 @@ ErrorOccured:
 End Sub
 
 '**********************************************************************************************''
-'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Created by Peter Horsbøll Møller, Precisely
 'Parameters:
 '
 '**********************************************************************************************''
